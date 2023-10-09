@@ -1,13 +1,16 @@
 // ==UserScript==
 // @name         杭电信工教务成绩分析
 // @namespace    https://chiyukiruon.com
-// @version      1.0.0
+// @version      1.0.1
 // @description  用于分析杭电信工教务的详细成绩并展示
 // @author       ChiyukiRuon
+// @source       https://chiyukiruon.com
 // @updateURL    https://raw.githubusercontent.com/ChiyukiRuon/hziee-score-detail-js/main/score-detail.js
 // @downloadURL  https://raw.githubusercontent.com/ChiyukiRuon/hziee-score-detail-js/main/score-detail.js
 // @supportURL   https://github.com/ChiyukiRuon/hziee-score-detail-js/issues
-// @match        http://*/*
+// @match        http://10.130.5.235:6379/*
+// @match        http://10.130.5.236/*
+// @match        http://10.130.5.229:6379/*
 // @icon         data:image/png;base64,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
 // @grant        GM_addStyle
 // ==/UserScript==
@@ -27,7 +30,7 @@
         "  \\_____|_| |_|_|\\__, |\\__,_|_|\\_\\_|\n" +
         "                  __/ |             \n" +
         "                 |___/              \n" +
-        "详细成绩分析插件-v1.0.0\n" +
+        "详细成绩分析插件-v1.0.1\n" +
         "Copyright©ChiyukiRuon\n" +
         "https://chiyukiruon.com")
 
