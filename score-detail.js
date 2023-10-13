@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         杭电信工教务成绩分析
 // @namespace    https://chiyukiruon.com
-// @version      1.0.1
+// @version      1.0.2
 // @description  用于分析杭电信工教务的详细成绩并展示
 // @author       ChiyukiRuon
 // @source       https://chiyukiruon.com
+// @license      GNU General Public License v3
 // @updateURL    https://raw.githubusercontent.com/ChiyukiRuon/hziee-score-detail-js/main/score-detail.js
 // @downloadURL  https://raw.githubusercontent.com/ChiyukiRuon/hziee-score-detail-js/main/score-detail.js
 // @supportURL   https://github.com/ChiyukiRuon/hziee-score-detail-js/issues
@@ -30,7 +31,7 @@
         "  \\_____|_| |_|_|\\__, |\\__,_|_|\\_\\_|\n" +
         "                  __/ |             \n" +
         "                 |___/              \n" +
-        "详细成绩分析插件-v1.0.1\n" +
+        "详细成绩分析插件-v1.0.2\n" +
         "Copyright©ChiyukiRuon\n" +
         "https://chiyukiruon.com")
 
