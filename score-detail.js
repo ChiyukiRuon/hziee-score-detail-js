@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         杭电信工教务成绩分析
 // @namespace    https://chiyukiruon.com
-// @version      1.1.0
+// @version      1.2.0
 // @description  用于分析杭电信工教务的详细成绩并展示
 // @author       ChiyukiRuon
 // @source       https://chiyukiruon.com
@@ -16,11 +16,24 @@
 // @grant        GM_addStyle
 // @grant        GM_setClipboard
 // @grant        GM_notification
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_xmlhttpRequest
+// @grant        GM_download
 // @run-at       document-start
 // ==/UserScript==
 
 (function() {
     'use strict'
+
+    const VERSION = '1.2.0'  // 版本号
+    let ping  // 定时器
+
+    let enablePing = GM_getValue('enablePing', false)
+
+    clearInterval(ping)
+    if (enablePing) keepVPNConnection()  // 检查是否开启VPN保活
 
     // 检查浏览器是否支持通知
     if (!("Notification" in window)) {
@@ -34,31 +47,33 @@
     }
 
     // 注册全局样式
-    let css = `table {border-collapse: collapse;width: 100%;} table, th, td {border-bottom: 1px solid rgb(236, 238, 244);} table tr:nth-child(even) {background-color: rgb(250, 250, 250);} table tr:nth-child(odd) {background-color: rgb(255, 255, 255);} .main-table:hover {background-color: rgb(245, 247, 250)} .table-text {margin-left: 10px} .btn-group {background-color: #FFFFFF; color: #303133; border: 1px solid #DCDFE6; border-radius: 5px; padding: 5px 10px; margin: 5px 10px; transition-duration: 0.4s} .btn-group:hover {color: #47A2FF; border: 1px solid #47A2FF; cursor: pointer; transition-duration: 0.4s}`
+    let css = `table {border-collapse: collapse;width: 100%;} table, th, td {border-bottom: 1px solid rgb(236, 238, 244);} table tr:nth-child(even) {background-color: rgb(250, 250, 250);} table tr:nth-child(odd) {background-color: rgb(255, 255, 255);} .main-table:hover {background-color: rgb(245, 247, 250)} .table-text {margin-left: 10px} .btn-group {background-color: #FFFFFF; color: #303133; border: 1px solid #DCDFE6; border-radius: 5px; padding: 5px 10px; margin: 5px 10px; transition-duration: 0.4s} .btn-group:hover {color: #47A2FF; border: 1px solid #47A2FF; cursor: pointer; transition-duration: 0.4s} .copyright {color: #303133; margin-top: 3px; a {color: #303133;} a:hover {color: #337ecc;}} .info-group {display: flex; align-items: center; margin-right: auto; font-size: 15px; color: #606266;}`
     GM_addStyle(css)
 
-    // 版权及版本信息
-    console.log("\n   _____ _     _             _    _ \n" +
-        "  / ____| |   (_)           | |  (_)\n" +
-        " | |    | |__  _ _   _ _   _| | ___ \n" +
-        " | |    | '_ \\| | | | | | | | |/ / |\n" +
-        " | |____| | | | | |_| | |_| |   <| |\n" +
-        "  \\_____|_| |_|_|\\__, |\\__,_|_|\\_\\_|\n" +
-        "                  __/ |             \n" +
-        "                 |___/              \n" +
-        "杭电信工教务成绩分析-v1.1.0\n" +
-        "Copyright©ChiyukiRuon\n" +
-        "https://chiyukiruon.com")
-
-    // 隐藏原始表格
-    const originTable = document.getElementById('tbXsxx')
-    const originData = document.getElementById('DataGrid1')
-    if (originTable) {
-        originTable.style.display = 'none'
-    }
-
-    if (originData) {
-        originData.style.display = 'none'
+    /**
+     * VPN登录保活
+     *
+     * @return void
+     * @author ChiyukiRuon
+     * */
+    function keepVPNConnection() {
+        ping = setInterval(() => {
+            GM_xmlhttpRequest({
+                method: "POST",
+                url: window.location.href,
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded;charset=utf-8"
+                },
+                data:"content=erwer",
+                onload: function(response){
+                    // console.log("请求成功")
+                },
+                onerror: function(response){
+                    // console.log("请求失败")
+                }
+            })
+            // console.log(ping, 'running')
+        }, 30000)
     }
 
     /**
@@ -211,6 +226,52 @@
     }
 
     /**
+     * 计算学分
+     *
+     * @param {Array} list 成绩列表
+     * @return {string}
+     * @author ChiyukiRuon
+     * */
+    function calcGP(list) {
+        let totalCredits = 0
+        let totalGrade = 0
+        for (let i = 0;i < list.length; i++) {
+            if (list[i].courseId.split('-')[3].charAt(0) !== 'R' && isPass(list[i].finalScore)) {
+                let grade = stringGrade2Num(list[i].finalScore)
+                totalCredits += parseFloat(list[i].credits)
+                totalGrade += parseFloat(list[i].credits)*grade
+            }
+        }
+
+        return (totalGrade/totalCredits/20).toFixed(2)
+    }
+
+    /**
+     * 文字的成绩转化为数字
+     *
+     * @param {String} grade 成绩
+     * @return {Number}
+     * @author ChiyukiRuon
+     * */
+    function stringGrade2Num(grade) {
+        if (/^\d{2}$/.test(grade)) return parseFloat(grade)
+        switch (grade) {
+            case '优秀':
+                return 100
+            case '良好':
+                return 80
+            case '中等':
+                return 60
+            case '合格':
+                return 40
+            case '及格':
+                return 20
+            default:
+                return 0
+        }
+    }
+
+    /**
      * 创建表格
      *
      * @param {Array} list
@@ -234,12 +295,37 @@
         return tableText.replace(/undefined/g, ' ')
     }
 
+    // 隐藏原始表格
+    const originTable = document.getElementById('tbXsxx')
+    const originData = document.getElementById('DataGrid1')
+    if (originTable) {
+        originTable.style.display = 'none'
+    }
+
+    if (originData) {
+        originData.style.display = 'none'
+    }
+
     let normalString = base64ToString(document.getElementById('__VIEWSTATE').value)
     let resultList = siftString(normalString)
 
     let targetElement = document.querySelector('#tbXsxx')
 
     if (targetElement) {
+
+        // 版权及版本信息
+        console.log("\n   _____ _     _             _    _ \n" +
+            "  / ____| |   (_)           | |  (_)\n" +
+            " | |    | |__  _ _   _ _   _| | ___ \n" +
+            " | |    | '_ \\| | | | | | | | |/ / |\n" +
+            " | |____| | | | | |_| | |_| |   <| |\n" +
+            "  \\_____|_| |_|_|\\__, |\\__,_|_|\\_\\_|\n" +
+            "                  __/ |             \n" +
+            "                 |___/              \n" +
+            `杭电信工教务成绩分析脚本-v${VERSION}\n` +
+            "Copyright©ChiyukiRuon\n" +
+            "https://chiyukiruon.com")
+
         const newElement = document.createElement('div')
         newElement.innerHTML = `<table id="score-detail" style="width: 100%; font-size: medium; text-align: left;"><tr style="color: rgb(145, 147, 152); height: 40px"><th><div class="table-text">科目</div></th><th><div class="table-text">最终成绩</div></th><th><div class="table-text">平时成绩</div></th><th><div class="table-text">考核成绩</div></th><th><div class="table-text">学分</div></th><th><div class="table-text">开课学院</div></th></tr>${createTableValue(resultList)}</table>`
         newElement.style.width = '100%'
@@ -252,6 +338,11 @@
         btnContainer.style.display = 'flex'
         btnContainer.style.justifyContent = 'flex-end'
 
+        // 显示绩点
+        const showGP = document.createElement('div')
+        showGP.innerHTML = `绩点(仅供参考)：${calcGP(resultList)}`
+        showGP.className = 'info-group'
+
         // 定义切换表格按钮
         const changeBtn = document.createElement('div')
         changeBtn.innerText = '切换表格'
@@ -262,9 +353,23 @@
         copyViewState.innerText = '将 __VIEWSTATE 复制到剪切板'
         copyViewState.className = 'btn-group'
 
+        // 定义设置VPN连接保活按钮
+        const enablePingBtn = document.createElement('div')
+        enablePingBtn.innerText = '开启「防止VPN自动断开」'
+        enablePingBtn.className = 'btn-group'
+        enablePingBtn.style.display = enablePing?'none':''
+
+        const disablePingBtn = document.createElement('div')
+        disablePingBtn.innerText = '关闭「防止VPN自动断开」'
+        disablePingBtn.className = 'btn-group'
+        disablePingBtn.style.display = enablePing?'':'none'
+
         // 注册按钮容器以及按钮
+        btnContainer.appendChild(showGP)
         btnContainer.appendChild(changeBtn)
         btnContainer.appendChild(copyViewState)
+        btnContainer.appendChild(enablePingBtn)
+        btnContainer.appendChild(disablePingBtn)
         newElement.parentNode.insertBefore(btnContainer, newElement)
 
         // 注册按钮点击事件
@@ -286,5 +391,29 @@
                 })
             }
         })
+        enablePingBtn.addEventListener('click', () => {
+            GM_setValue('enablePing', true)
+            enablePing = true
+            enablePingBtn.style.display = 'none'
+            disablePingBtn.style.display = ''
+            keepVPNConnection()
+        })
+        disablePingBtn.addEventListener('click', () => {
+            GM_setValue('enablePing', false)
+            enablePing = false
+            enablePingBtn.style.display = ''
+            disablePingBtn.style.display = 'none'
+            clearInterval(ping)
+        })
+
+        // 更新网页前清除定时器防止定时器堆叠
+        window.addEventListener('beforeunload', () => {
+            clearInterval(ping)
+        })
+
+        const copyright = document.createElement('div')
+        copyright.innerHTML = `<div><a href="https://github.com/ChiyukiRuon/hziee-score-detail-js/" target="_blank">杭电信工教务成绩分析脚本v${VERSION}</a> | &copy; <a href="https://chiyukiruon.com" target="_blank">ChiyukiRuon</a></div>`
+        copyright.className = 'copyright'
+        newElement.parentNode.insertBefore(copyright, targetElement)
     }
 })();
